@@ -11,7 +11,6 @@ nslaves = 3
 master_name = '%s-master' % cluster_name
 slave_names = ['%s-slave%d' % (cluster_name, idx+1) for idx in range(nslaves)]
 identity_file = None
-user = 'root'
 
 def ssh_args():
     parts = ['-o', 'StrictHostKeyChecking=no']
@@ -29,7 +28,7 @@ def stringify_command(parts):
     else:
         return ' '.join(map(pipes.quote, parts))
 
-def ssh(host, command):
+def ssh(host, command, user='root'):
     proc = subprocess.Popen(
             ssh_command() + ['-t', '-t', '%s@%s' % (user, host),
                                      stringify_command(command)],
@@ -48,6 +47,7 @@ common_opts = {
     'cpus':1,
     'memory':1024,
     'hourly':True,
+    'disks':[25,100],
     'os_code':'UBUNTU_LATEST',
     'local_disk':True,
     'ssh_keys':[227713,],
@@ -95,11 +95,6 @@ pri_ip_master = vs_manager.get_instance(master_id)['primaryBackendIpAddress']
 pub_ip_slaves = [vs_manager.get_instance(slave_id)['primaryIpAddress'] for slave_id in slave_ids]
 pri_ip_slaves = [vs_manager.get_instance(slave_id)['primaryBackendIpAddress'] for slave_id in slave_ids]
 
-#pub_ip_master = '50.97.65.227'
-#pub_ip_slaves = ['50.97.65.228',]
-#pri_ip_master = '10.61.47.131'
-#pri_ip_slaves = ['10.61.47.148',]
-
 print('Setting /etc/hosts')
 ## Set /etc/hosts content
 hostscontent = '127.0.0.1 localhost\n'
@@ -125,7 +120,7 @@ for pub_ip in pub_ip_slaves:
     returncode, stdout, stderr = ssh(pub_ip, command)
 
 print('Installing Java')
-command = 'apt-get install -y openjdk-7-jre-headless curl'
+command = 'apt-get install -y curl default-jre default-jdk nmon'
 returncode, stdout, stderr = ssh(pub_ip_master, command)
 for pub_ip in pub_ip_slaves:
     returncode, stdout, stderr = ssh(pub_ip, command)
@@ -178,5 +173,182 @@ lines = stdout.decode('ascii').split('\n')
 output = [line for line in lines if 'roughly' in line][0]
 print(output)
 
+command = 'mkdir -m 777 /data'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+print('Formatting disk')
+def find_second_disk(pub_ip):
+    command = 'fdisk -l'
+    returncode, stdout, stderr = ssh(pub_ip, command)
+    lines = stdout.decode('ascii').split('\n')
+    lines = [line for line in lines if ('Disk' in line) and ('GB' in line)]
+    line = [line for line in lines if 'xvda' not in line][0]
+    device = line.split(' ')[1][:-1]
+    return device
+for pub_ip in [pub_ip_master,]+pub_ip_slaves:
+    device = find_second_disk(pub_ip)
+    command = 'mkfs.ext4 /dev/xvdc'
+    returncode, stdout, stderr = ssh(pub_ip, command)
+    fstab_string = "/dev/xvdc /data                   ext4    defaults,noatime        0 0\n"
+    command = 'echo "%s" >> /etc/fstab' % fstab_string
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+command = 'mount /data'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+print('Installing HDFS')
+hadoop_url = 'http://apache.claz.org/hadoop/core/hadoop-2.6.0/hadoop-2.6.0.tar.gz'
+outfile = '/root/hadoop.tgz'
+command = 'curl -o %s %s' % (outfile, hadoop_url)
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+command = 'tar zfx %s -C /usr/local' % outfile
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+command = 'mv /usr/local/hadoop-2.6.0 /usr/local/hadoop'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+"""
+command = 'cp /etc/ssh/sshd_config /etc/ssh/sshd_config.orig'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+command = 'sed -i "s/#PasswordAuthentication yes/PasswordAuthentication no/" /etc/ssh/sshd_config'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+command = 'sed -i "s/ChallengeResponseAuthentication yes/ChallengeResponseAuthentication no/" /etc/ssh/sshd_config'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+command = 'service ssh restart'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+"""
+
+command = 'adduser --disabled-password --gecos "" hadoop'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+command = 'echo "hadoop ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+command = 'chown -R hadoop.hadoop /data'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+command = 'chown -R hadoop.hadoop /usr/local/hadoop'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+command = 'cp -a /root/.ssh /home/hadoop/'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+command = 'chown -R hadoop /home/hadoop/.ssh'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command)
+
+command = 'echo "export PATH=$PATH:/usr/local/hadoop/bin" >> /home/hadoop/.bash_profile'
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command, user='hadoop')
+
+command = 'echo "%s" > /usr/local/hadoop/etc/hadoop/masters' % master_name
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command, user='hadoop')
+
+slavescontent = '%s\n' % master_name
+for slave_name in slave_names:
+    slavescontent += '%s\n' % slave_name
+command = 'echo "%s" > /usr/local/hadoop/etc/hadoop/slaves' % slavescontent
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command, user='hadoop')
+
+command = 'echo export JAVA_HOME=%s >> /home/hadoop/.bash_profile' % java_home
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command, user='hadoop')
+
+coresite = '/usr/local/hadoop/etc/hadoop/core-site.xml'
+command = 'sed -i "s/<configuration>//" %s' % coresite
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command, user='hadoop')
+command = 'sed -i "s/<\/configuration>//" %s' % coresite
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command, user='hadoop')
+
+coresite_content = '<configuration>\n<property>\n'
+coresite_content += '<name>fs.default.name</name>\n'
+coresite_content += '<value>hdfs://%s:54310/</value>' % master_name
+coresite_content += '</property>\n</configuration>'
+command = 'echo "%s" >> %s' % (coresite_content, coresite)
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command, user='hadoop')
+
+hdfssite = '/usr/local/hadoop/etc/hadoop/hdfs-site.xml'
+command = 'sed -i "s/<configuration>//" %s' % hdfssite
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command, user='hadoop')
+command = 'sed -i "s/<\/configuration>//" %s' % hdfssite
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command, user='hadoop')
+hdfs_content = """
+<configuration>
+<property>
+<name>dfs.replication</name>
+<value>3</value>
+</property>
+<property>
+<name>dfs.data.dir</name>
+<value>/data</value>
+</property>
+</configuration>
+"""
+command = 'echo "%s" >> %s' % (hdfs_content, hdfssite)
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command, user='hadoop')
+
+set_java = 'export JAVA_HOME=%s' % java_home
+command = '%s && /usr/local/hadoop/bin/hadoop namenode -format' % set_java
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+
+command = '%s && /usr/local/hadoop/sbin/hadoop-daemon.sh --config /usr/local/hadoop/etc/hadoop --script hdfs start namenode' % set_java
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+
+command = '%s && /usr/local/hadoop/sbin/hadoop-daemon.sh --config /usr/local/hadoop/etc/hadoop --script hdfs start datanode' % set_java
+returncode, stdout, stderr = ssh(pub_ip_master, command, user='hadoop')
+for pub_ip in pub_ip_slaves:
+    returncode, stdout, stderr = ssh(pub_ip, command, user='hadoop')
+
+print('HDFS Running at http://%s:50070/dfshealth.jsp' % pub_ip_master)
 
 
