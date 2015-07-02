@@ -21,8 +21,12 @@ parser.add_argument('-d', dest='disk', type=int, action='store', default=100,
         help='Size of second disk for HDFS')
 parser.add_argument('--data-center', dest='data_center', action='store',
         default='dal05', help='Datacenter')
+parser.add_argument('--identity-file', dest='identity_file', action='store',
+        default=None, help='Identity file for SSH')
 parser.add_argument('-k', dest='ssh_key', action='store',
         required=True, help='SSH key to use')
+parser.add_argument('--no-hdfs', dest='no_hdfs', action='store_true',
+        help='Skip HDFS install')
 args = parser.parse_args()
 
 username = os.environ['SL_USER']
@@ -40,38 +44,31 @@ if args.disk > 0:
 else:
     disks = [25,]
 cpus = args.cpus
+if args.no_hdfs:
+    disks = [25,]
 
 master_name = '%s-master' % cluster_name
 slave_names = ['%s-slave%d' % (cluster_name, idx+1) for idx in range(nslaves)]
-identity_file = None
 
 def ssh_args():
     parts = ['-o', 'StrictHostKeyChecking=no']
     parts += ['-o', 'UserKnownHostsFile=/dev/null']
-    if identity_file is not None:
-        parts += ['-i', identity_file]
+    if args.identity_file is not None:
+        parts += ['-i', args.identity_file]
     return parts
 
 def ssh_command():
     return ['ssh'] + ssh_args()
 
-def stringify_command(parts):
-    if isinstance(parts, str):
-        return parts
-    else:
-        return ' '.join(map(pipes.quote, parts))
-
 def ssh(host, command, user='root'):
     proc = subprocess.Popen(
-            ssh_command() + ['-t', '-t', '%s@%s' % (user, host),
-                                     stringify_command(command)],
+            ssh_command() + ['-t', '-t', '%s@%s' % (user, host), command],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = proc.communicate()
     returncode = proc.poll()
     return returncode, stdout, stderr
 
 ## Create VMs
-
 common_opts = {
     'datacenter':'dal05',
     'domain':'softlayer.com',
@@ -83,9 +80,6 @@ common_opts = {
     'local_disk':True,
     'ssh_keys':sshkeys,
     }
-
-print common_opts
-sys.exit(1)
 
 master_opts = common_opts.copy()
 master_opts.update({
@@ -127,7 +121,6 @@ pub_ip_slaves = [vs_manager.get_instance(slave_id)['primaryIpAddress'] for slave
 pri_ip_slaves = [vs_manager.get_instance(slave_id)['primaryBackendIpAddress'] for slave_id in slave_ids]
 
 print('Setting /etc/hosts')
-## Set /etc/hosts content
 hostscontent = '127.0.0.1 localhost\n'
 hostscontent += '%s %s\n' % (pri_ip_master, master_name)
 for slave_name, private_ip in zip(slave_names, pri_ip_slaves):
@@ -204,6 +197,10 @@ lines = stdout.decode('ascii').split('\n')
 output = [line for line in lines if 'roughly' in line][0]
 print(output)
 
+## Quit if not installing HDFS
+if args.no_hdfs:
+    sys.exit(0)
+
 command = 'mkdir -m 777 /data'
 returncode, stdout, stderr = ssh(pub_ip_master, command)
 for pub_ip in pub_ip_slaves:
@@ -249,28 +246,6 @@ returncode, stdout, stderr = ssh(pub_ip_master, command)
 for pub_ip in pub_ip_slaves:
     returncode, stdout, stderr = ssh(pub_ip, command)
 
-"""
-command = 'cp /etc/ssh/sshd_config /etc/ssh/sshd_config.orig'
-returncode, stdout, stderr = ssh(pub_ip_master, command)
-for pub_ip in pub_ip_slaves:
-    returncode, stdout, stderr = ssh(pub_ip, command)
-
-command = 'sed -i "s/#PasswordAuthentication yes/PasswordAuthentication no/" /etc/ssh/sshd_config'
-returncode, stdout, stderr = ssh(pub_ip_master, command)
-for pub_ip in pub_ip_slaves:
-    returncode, stdout, stderr = ssh(pub_ip, command)
-
-command = 'sed -i "s/ChallengeResponseAuthentication yes/ChallengeResponseAuthentication no/" /etc/ssh/sshd_config'
-returncode, stdout, stderr = ssh(pub_ip_master, command)
-for pub_ip in pub_ip_slaves:
-    returncode, stdout, stderr = ssh(pub_ip, command)
-
-command = 'service ssh restart'
-returncode, stdout, stderr = ssh(pub_ip_master, command)
-for pub_ip in pub_ip_slaves:
-    returncode, stdout, stderr = ssh(pub_ip, command)
-"""
-
 command = 'adduser --disabled-password --gecos "" hadoop'
 returncode, stdout, stderr = ssh(pub_ip_master, command)
 for pub_ip in pub_ip_slaves:
@@ -295,6 +270,7 @@ command = 'cp -a /root/.ssh /home/hadoop/'
 returncode, stdout, stderr = ssh(pub_ip_master, command)
 for pub_ip in pub_ip_slaves:
     returncode, stdout, stderr = ssh(pub_ip, command)
+
 command = 'chown -R hadoop /home/hadoop/.ssh'
 returncode, stdout, stderr = ssh(pub_ip_master, command)
 for pub_ip in pub_ip_slaves:
