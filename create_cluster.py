@@ -1,12 +1,45 @@
+import sys
 import os
 import time
 import urllib3
 import subprocess
+import argparse
 
 import SoftLayer
 
-cluster_name = 'test1'
-nslaves = 3
+parser = argparse.ArgumentParser(
+        description='Cancel SoftLayer cluster')
+parser.add_argument('cluster', action='store',
+        help='Name of cluster')
+parser.add_argument('-n', dest='nnodes', type=int, action='store', default=3,
+        help='Number of nodes')
+parser.add_argument('-c', dest='cpus', type=int, action='store', default=1,
+        help='Number of cpus')
+parser.add_argument('-m', dest='memory', type=int, action='store', default=1024,
+        help='Memory (MB)')
+parser.add_argument('-d', dest='disk', type=int, action='store', default=100,
+        help='Size of second disk for HDFS')
+parser.add_argument('--data-center', dest='data_center', action='store',
+        default='dal05', help='Datacenter')
+parser.add_argument('-k', dest='ssh_key', action='store',
+        required=True, help='SSH key to use')
+args = parser.parse_args()
+
+username = os.environ['SL_USER']
+api_key = os.environ['SL_KEY']
+client = SoftLayer.Client(username=username, api_key=api_key)
+vs_manager = SoftLayer.VSManager(client)
+ssh_manager = SoftLayer.SshKeyManager(client)
+
+cluster_name = args.cluster
+nslaves = args.nnodes - 1
+sshkeys = ssh_manager.resolve_ids(args.ssh_key)
+memory = args.memory
+if args.disk > 0:
+    disks = [25, args.disk]
+else:
+    disks = [25,]
+cpus = args.cpus
 
 master_name = '%s-master' % cluster_name
 slave_names = ['%s-slave%d' % (cluster_name, idx+1) for idx in range(nslaves)]
@@ -38,29 +71,27 @@ def ssh(host, command, user='root'):
     return returncode, stdout, stderr
 
 ## Create VMs
-username = os.environ['SL_USER']
-api_key = os.environ['SL_KEY']
 
 common_opts = {
     'datacenter':'dal05',
     'domain':'softlayer.com',
-    'cpus':1,
-    'memory':1024,
+    'cpus':cpus,
+    'memory':memory,
     'hourly':True,
-    'disks':[25,100],
+    'disks':disks,
     'os_code':'UBUNTU_LATEST',
     'local_disk':True,
-    'ssh_keys':[227713,],
+    'ssh_keys':sshkeys,
     }
+
+print common_opts
+sys.exit(1)
 
 master_opts = common_opts.copy()
 master_opts.update({
     'hostname':master_name,
     })
 master_opts = [master_opts,]
-
-client = SoftLayer.Client(username=username, api_key=api_key)
-vs_manager = SoftLayer.VSManager(client)
 
 create_responses = vs_manager.create_instances(master_opts)
 response = create_responses[0]

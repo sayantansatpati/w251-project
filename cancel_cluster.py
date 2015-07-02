@@ -1,8 +1,16 @@
 import os
+import argparse
 
 import SoftLayer
 
-cluster_name = 'test1'
+parser = argparse.ArgumentParser(
+        description='Cancel SoftLayer cluster')
+parser.add_argument('cluster', action='store',
+        help='Name of cluster')
+
+args = parser.parse_args()
+
+cluster_name = args.cluster
 
 username = os.environ['SL_USER']
 api_key = os.environ['SL_KEY']
