@@ -10,7 +10,7 @@ parser.add_argument('cluster', action='store',
 
 args = parser.parse_args()
 
-cluster_name = args.cluster
+cluster_name = '%s-' % args.cluster
 
 username = os.environ['SL_USER']
 api_key = os.environ['SL_KEY']
