@@ -20,6 +20,12 @@ vs_manager = SoftLayer.VSManager(client)
 
 instances = vs_manager.list_instances()
 instances = [instance for instance in instances if cluster_name in instance['hostname']]
+master = [instance for instance in instances if 'master' in instance['hostname']][0]
 
 for instance in instances:
-    vs_manager.cancel_instance(instance['id'])
+    print '%s: %s' % (instance['hostname'], instance['primaryIpAddress'])
+
+print 'ssh root@%s' % master['primaryIpAddress']
+
+
+
