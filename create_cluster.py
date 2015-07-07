@@ -197,6 +197,13 @@ lines = stdout.decode('ascii').split('\n')
 output = [line for line in lines if 'roughly' in line][0]
 print(output)
 
+command = 'echo "deb http://dl.bintray.com/sbt/debian /" >> /etc/apt/sources.list.d/sbt.list'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+command = 'apt-get update'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+command = 'apt-get install -y --force-yes sbt'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+
 ## Quit if not installing HDFS
 if args.no_hdfs:
     sys.exit(0)
