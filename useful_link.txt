@@ -1,0 +1,3 @@
+Esteban: http://digest.nushackers.org/2014/09/25/consistent-hashing/Esteban: https://spark.apache.org/docs/latest/storage-openstack-swift.htmlEsteban: https://www.ibm.com/developerworks/community/blogs/e90753c6-a6f1-4ae2-81d4-86eb33cf313c/entry/apache_spark_integrartion_with_softlayer_object_store?lang=en
+
+
