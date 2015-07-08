@@ -144,7 +144,7 @@ for pub_ip in pub_ip_slaves:
     returncode, stdout, stderr = ssh(pub_ip, command)
 
 print('Installing Java')
-command = 'apt-get install -y curl default-jre default-jdk nmon'
+command = 'apt-get install -y screen curl default-jre default-jdk nmon'
 returncode, stdout, stderr = ssh(pub_ip_master, command)
 for pub_ip in pub_ip_slaves:
     returncode, stdout, stderr = ssh(pub_ip, command)
@@ -365,4 +365,12 @@ for pub_ip in pub_ip_slaves:
 
 print('HDFS Running at http://%s:50070/dfshealth.jsp' % pub_ip_master)
 
+command = 'apt-get install -y python-pip python-dev'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+
+command = 'HADOOP_HOME=/usr/local/hadoop JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64 pip install pydoop'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+
+command = 'pip install python-swiftclient'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
 
