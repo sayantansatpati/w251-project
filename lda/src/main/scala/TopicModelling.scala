@@ -15,6 +15,7 @@ object TopicModel {
         val sc = new SparkContext(sparkConf)
 
         // Load documents from text files, 1 document per file
+        //val corpus: RDD[String] = sc.wholeTextFiles("hdfs://%s:54310/%s/*".format(hdfshost, hdfsroot)).map(_._2)
         val corpus: RDD[String] = sc.wholeTextFiles("hdfs://%s:54310/%s/*".format(hdfshost, hdfsroot)).map(_._2)
 
         // Split each document into a sequence of terms (words)
@@ -25,8 +26,13 @@ object TopicModel {
         //   termCounts: Sorted list of (term, termCount) pairs
         val termCounts: Array[(String, Long)] =
             tokenized.flatMap(_.map(_ -> 1L)).reduceByKey(_ + _).collect().sortBy(-_._2)
+
+        //for (elem <- termCounts) {
+        //    println("%s, %d".format(elem._1, elem._2))
+        //}
+
         //   vocabArray: Chosen vocab (removing common terms)
-        val numStopwords = 20
+        val numStopwords = 200
         val vocabArray: Array[String] =
             termCounts.takeRight(termCounts.size - numStopwords).map(_._1)
         //   vocab: Map term -> term index
@@ -46,14 +52,14 @@ object TopicModel {
             }
 
         // Set LDA parameters
-        val numTopics = 10
-        val lda = new LDA().setK(numTopics).setMaxIterations(10)
+        val numTopics = 20
+        val lda = new LDA().setK(numTopics).setMaxIterations(50)
 
         val ldaModel = lda.run(documents)
         val avgLogLikelihood = ldaModel.logLikelihood / documents.count()
 
         // Print topics, showing top-weighted 10 terms for each topic.
-        val topicIndices = ldaModel.describeTopics(maxTermsPerTopic = 10)
+        val topicIndices = ldaModel.describeTopics(maxTermsPerTopic = 20)
         topicIndices.foreach { case (terms, termWeights) =>
             println("TOPIC:")
             terms.zip(termWeights).foreach { case (term, weight) =>
