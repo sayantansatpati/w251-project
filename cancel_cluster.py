@@ -22,4 +22,5 @@ instances = vs_manager.list_instances()
 instances = [instance for instance in instances if cluster_name in instance['hostname']]
 
 for instance in instances:
+    print 'Cancelling %s' % instance['hostname']
     vs_manager.cancel_instance(instance['id'])

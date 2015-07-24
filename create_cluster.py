@@ -144,7 +144,7 @@ for pub_ip in pub_ip_slaves:
     returncode, stdout, stderr = ssh(pub_ip, command)
 
 print('Installing Java')
-command = 'apt-get install -y curl default-jre default-jdk nmon'
+command = 'apt-get install -y screen curl default-jre default-jdk nmon'
 returncode, stdout, stderr = ssh(pub_ip_master, command)
 for pub_ip in pub_ip_slaves:
     returncode, stdout, stderr = ssh(pub_ip, command)
@@ -196,6 +196,13 @@ returncode, stdout, stderr = ssh(pub_ip_master, command)
 lines = stdout.decode('ascii').split('\n')
 output = [line for line in lines if 'roughly' in line][0]
 print(output)
+
+command = 'echo "deb http://dl.bintray.com/sbt/debian /" >> /etc/apt/sources.list.d/sbt.list'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+command = 'apt-get update'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+command = 'apt-get install -y --force-yes sbt'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
 
 ## Quit if not installing HDFS
 if args.no_hdfs:
@@ -358,4 +365,12 @@ for pub_ip in pub_ip_slaves:
 
 print('HDFS Running at http://%s:50070/dfshealth.jsp' % pub_ip_master)
 
+command = 'apt-get install -y python-pip python-dev'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+
+command = 'HADOOP_HOME=/usr/local/hadoop JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64 pip install pydoop'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
+
+command = 'pip install python-swiftclient'
+returncode, stdout, stderr = ssh(pub_ip_master, command)
 
