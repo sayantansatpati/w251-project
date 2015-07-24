@@ -22,6 +22,8 @@ python clean.py no-attach local
 #Option 2: in additon to job in Option 1, also upload to SWIFT OBJECT STORAGE (much slower)
 python clean.py no-attach swift
 
+#Check whether files uploaded properly at Swift storage
+swift list w251-enron
 
 ####################
 #TO DO's 
@@ -38,4 +40,6 @@ zipfile.BadZipfile: zipfiles that span multiple disks are not supported
 4. Combine attachment info and create a new set of text data
 
 5. Indexing the textfile and attachments
+
+6. Figure out how to delete folder inside object store
 

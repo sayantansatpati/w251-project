@@ -63,7 +63,7 @@ for data in conn.get_container(container_name)[1]:
     count_sender +=1
     print "Processing Sender",count_sender
     #generate sender's directory in "/clean" directory if not already exist
-    SENDER_PATH = sender_folder[35:-8]+"/"
+    SENDER_PATH = sender_folder[35:-8]+"_"+str(count_sender)+"/"
     if not os.path.exists(os.path.dirname(CLEAN_PATH+SENDER_PATH)):
       os.makedirs(os.path.dirname(CLEAN_PATH+SENDER_PATH))
     #open the relevant sender's zip file
@@ -97,7 +97,7 @@ for data in conn.get_container(container_name)[1]:
             #print email 
              
             #Clean and write word into new textfile
-            filename = CLEAN_PATH+SENDER_PATH+textfile[9:]+"_"+str(count_sender)
+            filename = CLEAN_PATH+SENDER_PATH+textfile[9:]
             with open(filename,"w") as pf:
 
                 ### WRITE SCRIPT FOR COMBINING ATTACHMENT TEXT ###
