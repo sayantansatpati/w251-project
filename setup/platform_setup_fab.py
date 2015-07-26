@@ -373,6 +373,10 @@ class PlatformSetup(object):
         command = "sed -ie '/.*<configuration>.*/{ N; s#\\n#\\n%s\\n# }' %s" %(content, HADOOP_YARN_SITE_ENV_FILE)
         result = sudo(command, user="hadoop")
 
+    @task
+    def format_hadoop_namenode(self):
+        result = run("hadoop namenode -format")
+
 
     @task
     def start_hadoop_master(self):
@@ -458,4 +462,5 @@ class PlatformSetup(object):
         self.set_hosts(HOSTS_ALL)
         env.user = "hadoop"
         res = execute(self.update_hadoop_config, self)
+        res = execute(self.format_hadoop_namenode, self)
         #res = execute(self.install_packages_with_pip, self)
