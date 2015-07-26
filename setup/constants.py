@@ -76,8 +76,9 @@ HADOOP_YARN_SITE_CONFIG = ("<property>"
                             "<value>{0}:8050</value>"
                             "</property>")
 
-HADOOP_SBIN = "/usr/local/hadoop/sbin/"
+HADOOP_SBIN = "/usr/local/hadoop/sbin"
 HADOOP_DAEMON = HADOOP_SBIN + "/hadoop-daemon.sh"
 HADOOP_YARN_DAEMON = HADOOP_SBIN + "/yarn-daemon.sh"
 HADOOP_JOB_HISTORY_DAEMON = HADOOP_SBIN + "/mr-jobhistory-daemon.sh"
-HADOOP_STOP_ALL_DAEMONS = HADOOP_SBIN + "stop-all.sh"
+HADOOP_STOP_DFS = HADOOP_SBIN + "/stop-dfs.sh"
+HADOOP_STOP_YARN = HADOOP_SBIN + "/stop-yarn.sh"

@@ -396,7 +396,13 @@ class PlatformSetup(object):
     def start_hadoop_master(self):
         # Try stopping daemons first
         with settings(warn_only=True):
-            sudo(HADOOP_STOP_ALL_DAEMONS, user="hadoop")
+            sudo("{0} --config {1} --script hdfs stop namenode".format(HADOOP_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
+
+            sudo("{0} --config {1} stop resourcemanager".format(HADOOP_YARN_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
+
+            sudo("{0} --config {1} stop proxyserver".format(HADOOP_YARN_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
+
+            sudo("{0} --config {1} stop historyserver".format(HADOOP_JOB_HISTORY_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
 
         #Start
         sudo("{0} --config {1} --script hdfs start namenode".format(HADOOP_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
@@ -407,18 +413,25 @@ class PlatformSetup(object):
 
         sudo("{0} --config {1} start historyserver".format(HADOOP_JOB_HISTORY_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
 
+        print("All Hadoop Daemons started successfully on master!!!")
+
 
     @task
-    @parallel(pool_size=POOL_SIZE)
+    #@parallel(pool_size=POOL_SIZE)
+    @serial
     def start_hadoop_slaves(self):
         # Try stopping daemons first
         with settings(warn_only=True):
-            run(HADOOP_STOP_ALL_DAEMONS)
+            sudo("{0} --config {1} stop nodemanager".format(HADOOP_YARN_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
+
+            sudo("{0} --config {1} --script hdfs stop datanode".format(HADOOP_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
 
         #Start
         sudo("{0} --config {1} start nodemanager".format(HADOOP_YARN_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
 
         sudo("{0} --config {1} --script hdfs start datanode".format(HADOOP_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
+
+        print("All Hadoop Daemons started successfully on this slave!!!")
 
 
     @task
