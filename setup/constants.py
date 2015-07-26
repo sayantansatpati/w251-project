@@ -7,7 +7,7 @@ POOL_SIZE = 5
 
 # Packages to be installed
 PACKAGES = ["screen", "curl", "default-jre", "default-jdk", "nmon", "git", "python-pip", "python-dev"]
-PACKAGES_PIP = ["python-swiftclient", "nltk"]
+PACKAGES_PIP = ["python-swiftclient", "nltk", "pyyaml"]
 
 #Spark
 SPARK_HOME = "/usr/local/spark"
