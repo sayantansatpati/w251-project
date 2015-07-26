@@ -164,10 +164,19 @@ class PlatformSetup(object):
                 print("sbt is already installed...")
 
     @task
+    @parallel(pool_size=POOL_SIZE)
     def install_packages_with_pip(self):
         with settings(warn_only=True):
             for package in PACKAGES_PIP:
                 result = run("pip install {0}".format(package))
+
+
+    @task
+    @parallel(pool_size=POOL_SIZE)
+    def install_nltk_data(self):
+        with settings(warn_only=True):
+            if not exists("/usr/share/nltk_data"):
+                result = run("python -m nltk.downloader -d /usr/share/nltk_data all")
 
 
     @task
@@ -499,6 +508,9 @@ class PlatformSetup(object):
         self.set_hosts(HOSTS_ALL)
         res = execute(self.install_packages, self)
         res = execute(self.set_java_home, self)
+        res = execute(self.install_packages_with_pip, self)
+        res = execute(self.install_nltk_data, self)
+
 
         # ------------------------------------------------
         # SPARK (Install & Run as root)
@@ -534,7 +546,6 @@ class PlatformSetup(object):
         res = execute(self.update_hadoop_config, self)
         self.set_hosts(HOSTS_MASTER)
         res = execute(self.format_hadoop_namenode, self)
-        #res = execute(self.install_packages_with_pip, self)
 
         # Start/Stop Hadoop Cluster. Run Test.
         self.set_hosts(HOSTS_MASTER)
