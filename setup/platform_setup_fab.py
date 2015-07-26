@@ -474,15 +474,16 @@ class PlatformSetup(object):
         get(remote_path='~/.ssh/id_rsa.pub', local_path=fd)
         print(fd.getvalue())
 
-        # Set authorized keys in all
-        self.set_hosts(HOSTS_ALL)
-        res = execute(self.set_authorized_keys, self, fd.getvalue())
-
-        # Copy the Private Key to Slaves
+         # Copy the Private Key downloaded from master (to local) to Slaves
         for i in xrange(self.args.nnodes - 1):
             cmd = "scp -i {0} -o StrictHostKeyChecking=no ./id_rsa root@{1}:~/.ssh/".format(self.args.identity_file,
                                                                 INSTANCE_DICT['slaves']['publicIps'][i])
             local(cmd)
+
+        # Set authorized keys in all
+        self.set_hosts(HOSTS_ALL)
+        res = execute(self.set_authorized_keys, self, fd.getvalue())
+
 
     def setup(self):
         """Driver Function for setting up the Platform"""

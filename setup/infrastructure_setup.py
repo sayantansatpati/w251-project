@@ -99,7 +99,7 @@ def fetch_existing_sl_cluster(args):
 
     instances_all = vs_manager.list_instances()
     #print pprint.pprint(instances_all)
-    instances = [instance for instance in instances_all if args.cluster in instance['hostname']]
+    instances = [instance for instance in instances_all if instance['hostname'].startswith(args.cluster + "-")]
     print("Instances of cluster: {0}".format(args.cluster))
     print pprint.pprint(instances)
     master = [instance for instance in instances if 'master' in instance['hostname']][0]
