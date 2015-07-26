@@ -12,6 +12,12 @@ PACKAGES_PIP = ["pydoop", "python-swiftclient"]
 #Spark
 SPARK_HOME = "/usr/local/spark"
 SPARK_SLAVES_FILE = "/usr/local/spark/conf/slaves"
+SPARK_BIN = SPARK_HOME + "/bin"
+SPARK_SBIN = SPARK_HOME + "/sbin"
+SPARK_MASTER_DAEMON = SPARK_SBIN + "/start-master.sh"
+SPARK_SLAVE_DAEMONS = SPARK_SBIN + "/start-slaves.sh"
+SPARK_START_ALL_DAEMONS = SPARK_SBIN + "/start-all.sh"
+SPARK_STOP_ALL_DAEMONS = SPARK_SBIN + "/stop-all.sh"
 
 #Hadoop
 HADOOP_HOME = "/usr/local/hadoop"
@@ -70,4 +76,8 @@ HADOOP_YARN_SITE_CONFIG = ("<property>"
                             "<value>{0}:8050</value>"
                             "</property>")
 
-# Global Var
+HADOOP_SBIN = "/usr/local/hadoop/sbin/"
+HADOOP_DAEMON = HADOOP_SBIN + "/hadoop-daemon.sh"
+HADOOP_YARN_DAEMON = HADOOP_SBIN + "/yarn-daemon.sh"
+HADOOP_JOB_HISTORY_DAEMON = HADOOP_SBIN + "/mr-jobhistory-daemon.sh"
+HADOOP_STOP_ALL_DAEMONS = HADOOP_SBIN + "stop-all.sh"

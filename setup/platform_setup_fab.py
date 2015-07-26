@@ -102,13 +102,12 @@ class PlatformSetup(object):
     @task
     def set_known_hosts(self, hostname):
         for i in xrange(self.args.nnodes):
-            if INSTANCE_DICT['all']['hostnames'][i] != hostname:
-                print("### Adding {0} to know_hosts".format(INSTANCE_DICT['all']['hostnames'][i]))
-                if exists('~/.ssh/known_hosts'):
-                    # Delete entries if present
-                    run('ssh-keygen -R {0}'.format(INSTANCE_DICT['all']['hostnames'][i]))
-                # Add new entries
-                run('ssh-keyscan -H {0} >> ~/.ssh/known_hosts'.format(INSTANCE_DICT['all']['hostnames'][i]))
+            print("### Adding {0} to know_hosts".format(INSTANCE_DICT['all']['hostnames'][i]))
+            if exists('~/.ssh/known_hosts'):
+                # Delete entries if present
+                run('ssh-keygen -R {0}'.format(INSTANCE_DICT['all']['hostnames'][i]))
+            # Add new entries
+            run('ssh-keyscan -H {0} >> ~/.ssh/known_hosts'.format(INSTANCE_DICT['all']['hostnames'][i]))
         run('cat ~/.ssh/known_hosts')
 
     @task
@@ -223,7 +222,16 @@ class PlatformSetup(object):
 
     @task
     def start_spark(self):
-        pass
+        with settings(warn_only=True):
+            result = run(SPARK_STOP_ALL_DAEMONS)
+
+        result = run(SPARK_MASTER_DAEMON)
+        result = run(SPARK_SLAVE_DAEMONS)
+
+    @task
+    def test_spark(self):
+        #Test Spark
+        result = run("{0}/run-example SparkPi".format(SPARK_BIN))
 
 
     # The following Fabric Tasks are responsible for:
@@ -288,8 +296,12 @@ class PlatformSetup(object):
         command = 'chown -R hadoop.hadoop /usr/local/hadoop'
         result = run(command)
 
+        command = 'cp -a /root/.ssh /home/hadoop/'
         if not exists("/home/hadoop/.ssh"):
-            command = 'cp -a /root/.ssh /home/hadoop/'
+            result = run(command)
+        else:
+            # Delete & Create
+            result = run("rm -rf /home/hadoop/.ssh")
             result = run(command)
 
         command = 'chown -R hadoop /home/hadoop/.ssh'
@@ -373,20 +385,50 @@ class PlatformSetup(object):
         command = "sed -ie '/.*<configuration>.*/{ N; s#\\n#\\n%s\\n# }' %s" %(content, HADOOP_YARN_SITE_ENV_FILE)
         result = sudo(command, user="hadoop")
 
+
     @task
     def format_hadoop_namenode(self):
-        result = run("hadoop namenode -format")
+        # CAUTION: NN is formatted even though there is data (-force used)
+        result = sudo("hadoop namenode -format -force -nonInteractive", user="hadoop")
 
 
     @task
     def start_hadoop_master(self):
-        pass
+        # Try stopping daemons first
+        with settings(warn_only=True):
+            sudo(HADOOP_STOP_ALL_DAEMONS, user="hadoop")
+
+        #Start
+        sudo("{0} --config {1} --script hdfs start namenode".format(HADOOP_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
+
+        sudo("{0} --config {1} start resourcemanager".format(HADOOP_YARN_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
+
+        sudo("{0} --config {1} start proxyserver".format(HADOOP_YARN_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
+
+        sudo("{0} --config {1} start historyserver".format(HADOOP_JOB_HISTORY_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
 
 
     @task
     @parallel(pool_size=POOL_SIZE)
     def start_hadoop_slaves(self):
-        pass
+        # Try stopping daemons first
+        with settings(warn_only=True):
+            run(HADOOP_STOP_ALL_DAEMONS)
+
+        #Start
+        sudo("{0} --config {1} start nodemanager".format(HADOOP_YARN_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
+
+        sudo("{0} --config {1} --script hdfs start datanode".format(HADOOP_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
+
+
+    @task
+    def test_hadoop(self):
+        #Test hadoop
+        with cd("/usr/local/hadoop/share/hadoop/mapreduce"):
+            sudo("hadoop jar hadoop-mapreduce-examples-2.6.0.jar teragen 100000000 /terasort/in")
+            sudo("hadoop jar hadoop-mapreduce-examples-2.6.0.jar terasort /terasort/in /terasort/out")
+            sudo("hadoop jar hadoop-mapreduce-examples-2.6.0.jar teravalidate /terasort/out /terasort/val")
+            sudo("hdfs dfs -rmr /terasort/\*")
 
 
     # The following Fabric Tasks are responsible for:
@@ -431,7 +473,7 @@ class PlatformSetup(object):
 
     def setup(self):
         """Driver Function for setting up the Platform"""
-        '''
+
         self.set_hosts(HOSTS_ALL)
         # Test task
         res = execute(self.test_task, self)
@@ -444,6 +486,10 @@ class PlatformSetup(object):
         res = execute(self.install_packages, self)
         res = execute(self.set_java_home, self)
 
+        # ------------------------------------------------
+        # SPARK (Install & Run as root)
+        # ------------------------------------------------
+
         #Install Spark
         self.set_hosts(HOSTS_ALL)
         res = execute(self.install_spark, self)
@@ -453,14 +499,34 @@ class PlatformSetup(object):
         res = execute(self.install_sbt, self)
         res = execute(self.create_spark_slaves_file, self)
 
+        # Start/Stop Spark Cluster. Run Test.
+        self.set_hosts(HOSTS_MASTER)
+        res = execute(self.start_spark, self)
+        res = execute(self.test_spark, self)
+
+        # ------------------------------------------------
+        # HADOOP (Run as hadoop after installation as root)
+        # ------------------------------------------------
+
         #Install Hadoop
         self.set_hosts(HOSTS_ALL)
         res = execute(self.install_hadoop, self)
         res = execute(self.create_hadoop_storage, self)
         res = execute(self.create_hadoop_user_permissions, self)
-        '''
+
         self.set_hosts(HOSTS_ALL)
+        # Switch user to hadoop
         env.user = "hadoop"
         res = execute(self.update_hadoop_config, self)
+        self.set_hosts(HOSTS_MASTER)
         res = execute(self.format_hadoop_namenode, self)
         #res = execute(self.install_packages_with_pip, self)
+
+        # Start/Stop Hadoop Cluster. Run Test.
+        self.set_hosts(HOSTS_MASTER)
+        res = execute(self.start_hadoop_master, self)
+        self.set_hosts(HOSTS_SLAVES)
+        res = execute(self.start_hadoop_slaves, self)
+        # Test might take a while (Terasort)
+        #res = execute(self.test_hadoop, self)
+
