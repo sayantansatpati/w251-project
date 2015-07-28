@@ -12,7 +12,8 @@ os.environ["NLTK_DATA"] = "/usr/share/nltk_data"
 sw = stopwords.words('english')
 
 #tokenizer = RegexpTokenizer(r'\w+|\$[\d\.]+|\S+')
-tokenizer = RegexpTokenizer(r'\w+')
+#tokenizer = RegexpTokenizer(r'\w+')
+tokenizer = RegexpTokenizer(r'\b[a-zA-Z0-9_$]+\b')
 ls = LancasterStemmer()
 
 
