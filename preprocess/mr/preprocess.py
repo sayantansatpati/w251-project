@@ -2,8 +2,10 @@
 
 from nltk import *
 from nltk.corpus import stopwords
+import re
 import os
 import sys
+
 
 last_file = None
 tokens_in_file = []
@@ -14,8 +16,11 @@ sw = stopwords.words('english')
 
 #tokenizer = RegexpTokenizer(r'\w+|\$[\d\.]+|\S+')
 #tokenizer = RegexpTokenizer(r'\w+')
-tokenizer = RegexpTokenizer(r'\b[a-zA-Z0-9_$]+\b')
+tokenizer = RegexpTokenizer(r'\w+')
 ls = LancasterStemmer()
+
+# Filter
+pattern = re.compile(r'\A[\W]')
 
 
 def tokenize_stem(line):
@@ -38,7 +43,11 @@ def write_tokens():
 # input comes from STDIN (standard input)
 for line in sys.stdin:
     try:
-         # remove leading and trailing whitespace
+        if pattern.match(line):
+            print("[Mapper][Filter] Ignoring record: {0}".format(line))
+            continue
+
+        # remove leading and trailing whitespace
         line = line.strip()
         # Tokenize & Stem
         tokens = tokenize_stem(line)
@@ -60,7 +69,7 @@ for line in sys.stdin:
 
     except Exception as e:
         print e
-        print("[Mapper] Ignoring record: {0}".format(line))
+        print("[Mapper][Exception] Ignoring record: {0}".format(line))
         continue
 
 # Remaining ones
