@@ -20,7 +20,9 @@ ls = LancasterStemmer()
 def tokenize_stem(line):
     """Tokenize, Remove Stop Words, and Stem each word"""
     # Tokenize
-    tokens = [t for t in tokenizer.tokenize(line) if t.lower() not in sw]
+    tokens = tokenizer.tokenize(line)
+    # Stop Word Removal
+    tokens = [t for t in tokens if t.lower() not in sw]
     # Stem
     tokens = [ls.stem(t) for t in tokens]
 
