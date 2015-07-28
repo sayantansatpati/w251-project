@@ -4,8 +4,11 @@ from nltk import *
 from nltk.corpus import stopwords
 import sys
 
+last_file = None
+tokens_in_file = []
+
 # NLTK
-os.environ["NLTK_DATA"] = "~/nltk_data"
+os.environ["NLTK_DATA"] = "/usr/share/nltk_data"
 sw = stopwords.words('english')
 
 #tokenizer = RegexpTokenizer(r'\w+|\$[\d\.]+|\S+')
@@ -30,9 +33,19 @@ for line in sys.stdin:
         line = line.strip()
         # Tokenize & Stem
         tokens = tokenize_stem(line)
+        # Keep accumulating tokens for same file
+        tokens_in_file.extend(tokens)
 
-        if tokens and len(tokens) > 0:
-            print " ".join(tokens)
+        # Get current file name
+        filename = os.environ['map_input_file']
+
+        if last_file is not None and filename != last_file:
+            if tokens_in_file and len(tokens_in_file) > 0:
+                print " ".join(tokens_in_file)
+
+            # Reset
+            last_file = filename
+            del tokens_in_file[:]
 
     except Exception as e:
         print e
