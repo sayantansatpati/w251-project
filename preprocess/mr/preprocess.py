@@ -2,6 +2,7 @@
 
 from nltk import *
 from nltk.corpus import stopwords
+import os
 import sys
 
 last_file = None
@@ -53,7 +54,6 @@ for line in sys.stdin:
 
         if filename != last_file:
             write_tokens()
-
             # Reset
             last_file = filename
             del tokens_in_file[:]
