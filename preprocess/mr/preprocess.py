@@ -26,6 +26,11 @@ def tokenize_stem(line):
     return tokens
 
 
+def write_tokens():
+    if tokens_in_file and len(tokens_in_file) > 0:
+                print " ".join(tokens_in_file)
+
+
 # input comes from STDIN (standard input)
 for line in sys.stdin:
     try:
@@ -39,9 +44,12 @@ for line in sys.stdin:
         # Get current file name
         filename = os.environ['map_input_file']
 
-        if last_file is not None and filename != last_file:
-            if tokens_in_file and len(tokens_in_file) > 0:
-                print " ".join(tokens_in_file)
+        # First time
+        if not last_file:
+            last_file = filename
+
+        if filename != last_file:
+            write_tokens()
 
             # Reset
             last_file = filename
@@ -51,3 +59,6 @@ for line in sys.stdin:
         print e
         print("[Mapper] Ignoring record: {0}".format(line))
         continue
+
+# Remaining ones
+write_tokens()
