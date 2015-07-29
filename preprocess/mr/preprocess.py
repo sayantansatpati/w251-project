@@ -44,7 +44,7 @@ def write_tokens():
 for line in sys.stdin:
     try:
         if pattern.match(line):
-            print("[Mapper][Filter] Ignoring record: {0}".format(line))
+            #print("[Mapper][Filter] Ignoring record: {0}".format(line))
             continue
 
         # remove leading and trailing whitespace
