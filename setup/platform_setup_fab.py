@@ -1,6 +1,7 @@
 import sys
 import os
 import urllib3
+import time
 from StringIO import StringIO
 import pprint
 from fabric.api import *
@@ -422,6 +423,9 @@ class PlatformSetup(object):
 
         sudo("{0} --config {1} start historyserver".format(HADOOP_JOB_HISTORY_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
 
+        print("Sleeping for 30 secs for all daemons to come online on master!!!")
+        time.sleep(30)
+        sudo('jps', user="hadoop")
         print("All Hadoop Daemons started successfully on master!!!")
 
 
@@ -435,11 +439,15 @@ class PlatformSetup(object):
 
             sudo("{0} --config {1} --script hdfs stop datanode".format(HADOOP_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
 
+            # Avoid incompatible cluster ID problem
+            sudo("rm -f /data/current/VERSION", user="hadoop")
+
         #Start
         sudo("{0} --config {1} start nodemanager".format(HADOOP_YARN_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
 
         sudo("{0} --config {1} --script hdfs start datanode".format(HADOOP_DAEMON, HADOOP_CONFIG_HOME), user="hadoop")
 
+        sudo('jps', user="hadoop")
         print("All Hadoop Daemons started successfully on this slave!!!")
 
 
