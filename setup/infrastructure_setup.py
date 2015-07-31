@@ -104,6 +104,10 @@ def fetch_existing_sl_cluster(args):
     print pprint.pprint(instances)
     master = [instance for instance in instances if 'master' in instance['hostname']][0]
     slaves = [instance for instance in instances if 'slave' in instance['hostname']]
+
+    # Set number of nodes
+    args.nnodes = len(instances)
+
     return master, slaves
 
 
