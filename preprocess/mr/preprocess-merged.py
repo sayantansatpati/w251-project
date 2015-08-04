@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from nltk import *
+from nltk.stem.snowball import SnowballStemmer
 from nltk.corpus import stopwords
 import re
 import os
@@ -17,7 +18,8 @@ sw = stopwords.words('english')
 #tokenizer = RegexpTokenizer(r'\w+|\$[\d\.]+|\S+')
 #tokenizer = RegexpTokenizer(r'\w+')
 tokenizer = RegexpTokenizer(r'\w+')
-ls = LancasterStemmer()
+#ls = LancasterStemmer()
+sn = SnowballStemmer("english")
 
 # Filter
 pattern = re.compile(r'\A[\W]')
@@ -30,7 +32,7 @@ def tokenize_stem(line):
     # Stop Word Removal
     tokens = [t for t in tokens if t.lower() not in sw]
     # Stem
-    tokens = [ls.stem(t) for t in tokens]
+    tokens = [sn.stem(t) for t in tokens]
 
     return tokens
 
